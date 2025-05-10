@@ -4,18 +4,18 @@
 
 struct Segment {
 	std::vector<std::vector<uint16_t>> buckets; // bucketi jednog segmenta
-	std::vector<uint16_t> overflow; // overflow dio segmenta
+	std::vector<uint32_t> overflow; // overflow dio segmenta
 
 	Segment(size_t num_of_buckets, size_t bucket_size);
 };
 
 // TODO: trebamo dodati i kriterij za koliko se insertiona radi ekspanzija
 class BambooFilter {
-private:
-	int i, p, n0, lf, lb, ls0; // runda ekspanzije, index sljedeceg za expand, pocetni broj segmenata, velicina fingertipa, velicina bucketa indexa, pocetna velicina segment indexa
+public: // TODO: vrati u private
+	int i, p, n0, lf, lb, ls0, Me; // runda ekspanzije, index sljedeceg za expand, pocetni broj segmenata, velicina fingertipa, velicina bucketa indexa, pocetna velicina segment indexa, varijable Me iz insert funkcije
 	std::vector<Segment> segments; // segmenti
 
-public:
+//public:
 	BambooFilter();
 	//~BambooFilter();
 
@@ -25,7 +25,7 @@ public:
 	uint32_t getSegmentIndex(std::string entry); // funkcija koja vraca segment index za string entry
 	uint32_t getSegmentIndexWithCorrection(std::string entry); // funkcija koja vraca segment index za string entry ako prethodni ne pristaje
 
-	//bool insert(std::string);
+	bool insert(std::string entry);
 	//bool expand();
 	//bool lookup(std::string);
 };
