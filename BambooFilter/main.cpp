@@ -3,8 +3,8 @@
 #include <fstream>
 #include <sstream>
 #include "BambooFilter.h"
-extern "C" {  
-	#include "hash/xxhash.h"  
+extern "C" {
+#include "hash/xxhash.h"  
 }
 
 int main(void) {
@@ -27,8 +27,12 @@ int main(void) {
 		bf.insert(fileContent.substr(i, 15));
 	}
 
+
 	// DEBUG STATEMENTS:
 	/*
+	std::cout << "BOk";
+	uint32_t tralelrotralala = reconstructHash1(1, 1048575, 3);
+	std::cout << tralelrotralala;
 	bf.segments[0].buckets[0][0] = 1;
 
 	std::cout << "TEST" << std::endl;

@@ -90,6 +90,34 @@ uint32_t BambooFilter::getSegmentIndexWithCorrection(std::string entry) {
 	return segmentIndex;
 }
 
+// helper funkcija za dobivanje velicine broja u bitovima
+size_t BambooFilter::getBitLength(uint32_t n) {
+	if (n == 0) {
+		return 0;
+	}
+	return static_cast<int>(std::log2(n)) + 1;
+}
+
+// funkcija za rekonstrukciju hasha
+uint32_t BambooFilter::reconstructHash(uint16_t f, uint32_t Is, uint16_t Ib) {
+	size_t segmentIndexSize = this->getBitLength(Is); // dobij velicinu segment indexa
+	
+	// izracunaj koliko "krademo" bitova fingertipa
+	size_t difference;
+	if (segmentIndexSize <= this->ls0) difference = 0;
+	else difference = segmentIndexSize - this->ls0;
+
+	uint32_t mask = UINT32_MAX << difference; // izracun maske koja ce se koristiti za operaciju i nad fingertipom
+
+	uint32_t newFingertip = (f & mask) << (this->ls0 + this->lb); // izracunaj novi fingertip
+
+	uint32_t segementIndexBucketIndex = (Is << this->lb) | Ib; // izracunaj spojeni segment index i bucket index
+
+	uint32_t reconstructedHash = newFingertip | segementIndexBucketIndex; // izracunaj rekonstruirani hash
+
+	return reconstructedHash;
+}
+
 // funkcija za umetanje elementa u BambooFilter
 bool BambooFilter::insert(std::string entry) {
 	// fingertip
