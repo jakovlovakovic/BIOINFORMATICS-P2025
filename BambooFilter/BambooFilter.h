@@ -12,7 +12,7 @@ struct Segment {
 // TODO: trebamo dodati i kriterij za koliko se insertiona radi ekspanzija
 class BambooFilter {
 public: // TODO: vrati u private
-	int i, p, n0, lf, lb, ls0, Me; // runda ekspanzije, index sljedeceg za expand, pocetni broj segmenata, velicina fingertipa, velicina bucketa indexa, pocetna velicina segment indexa, varijable Me iz insert funkcije
+	size_t i, p, n0, lf, lb, ls0, Me, expansionTrigger; // runda ekspanzije, index sljedeceg za expand, pocetni broj segmenata, velicina fingertipa, velicina bucketa indexa, pocetna velicina segment indexa, varijable Me iz insert funkcije, expansion trigger
 	std::vector<Segment> segments; // segmenti
 	size_t getBitLength(uint32_t n); // helper funckija koja vraca bit length broja n
 	uint32_t reconstructHash(uint16_t f, uint32_t Is, uint16_t Ib); // helper funkcija koja rekonstruira hash

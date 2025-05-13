@@ -9,6 +9,7 @@ extern "C" {
 
 #define EMPTY_BUCKET_ELEMENT 32768 // oznaka praznog elementa u bucketu
 #define BUCKET_SIZE 4
+#define SEGMENT_SIZE 16
 
 // random number generator
 std::random_device rd;
@@ -34,13 +35,14 @@ Segment::Segment(size_t num_of_buckets, size_t bucket_size) {
 // konstruktor za BambooFilter
 BambooFilter::BambooFilter() {
 	// koristimo 32-bitni hash
-	i = 0; // runda ekspanzije
-	p = 0; // index sljedeceg za expandanje
-	n0 = 524288; // pocetan broj segmenata (2^19)
-	lf = 11; // velicina fingertipa
-	lb = 2; // velicina indexa bucketa (2 bita)
-	ls0 = 19; // velicina indexa segmenta (19 bitova)
-	Me = 16; // varijable Me iz insert funkcije
+	this->i = 0; // runda ekspanzije
+	this->p = 0; // index sljedeceg za expandanje
+	this->n0 = 524288; // pocetan broj segmenata (2^19)
+	this->lf = 11; // velicina fingertipa
+	this->lb = 2; // velicina indexa bucketa (2 bita)
+	this->ls0 = 19; // velicina indexa segmenta (19 bitova)
+	this->Me = SEGMENT_SIZE; // varijable Me iz insert funkcije
+	this->expansionTrigger = 0; // trigger za ekspanziju
 
 	unsigned int num_of_buckets = 1 << lb;
 
@@ -151,6 +153,7 @@ bool BambooFilter::insert(std::string entry) {
 
 	// randomly selectaj Ib ili IbAlternate
 	uint16_t ib = (dis(gen) >= BUCKET_SIZE / 2) ? Ib : IbAlternate;
+	uint16_t ibOld = Ib;
 	for (size_t loop = 0; loop < this->Me; loop++) {
 		// randomly selectaj element iz bucketa
 		uint16_t randomIndex = dis(gen);
@@ -169,9 +172,17 @@ bool BambooFilter::insert(std::string entry) {
 			}
 		}
 
+		ibOld = ib; // spremi stari ib
 		ib = ibAlternate; // priprema za sljedecu iteraciju
 	}
 
-	this->segments[Is].overflow.push_back(f); // TODO: Ovo obavezno izmijeni
+	uint32_t reconstructedHash = this->reconstructHash(f, Is, ibOld); // rekonstruacija hasha
+	this->segments[Is].overflow.push_back(reconstructedHash); // dodaj u overflow
+
+	// pozivanje expansiona
+	if (this->expansionTrigger >= SEGMENT_SIZE) {
+		// expand();
+	}
+
 	return true;
 }
