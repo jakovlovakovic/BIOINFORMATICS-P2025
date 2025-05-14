@@ -28,8 +28,8 @@ Segment::Segment(size_t num_of_buckets, size_t bucket_size) {
 
 		buckets.push_back(bucket);
 	}
-
-	overflow = std::vector<uint32_t>();
+	
+	this->overflow = std::vector<uint32_t>();
 }
 
 // konstruktor za BambooFilter
@@ -139,6 +139,15 @@ bool BambooFilter::insert(std::string entry) {
 	for (size_t j = 0; j < BUCKET_SIZE; j++) {
 		if (this->segments[Is].buckets[Ib][j] == EMPTY_BUCKET_ELEMENT) {
 			this->segments[Is].buckets[Ib][j] = f;
+
+			// provjeri treba li expendat, i expandaj ako treba
+			if (this->expansionTrigger >= SEGMENT_SIZE) {
+				this->expansionTrigger = 0;
+				this->expand();
+				return true;
+			}
+			expansionTrigger++;
+
 			return true;
 		}
 	}
@@ -147,6 +156,15 @@ bool BambooFilter::insert(std::string entry) {
 	for (size_t j = 0; j < BUCKET_SIZE; j++) {
 		if (this->segments[Is].buckets[IbAlternate][j] == EMPTY_BUCKET_ELEMENT) {
 			this->segments[Is].buckets[IbAlternate][j] = f;
+
+			// provjeri treba li expendat, i expandaj ako treba
+			if (this->expansionTrigger >= SEGMENT_SIZE) {
+				this->expansionTrigger = 0;
+				this->expand();
+				return true;
+			}
+			expansionTrigger++;
+
 			return true;
 		}
 	}
@@ -168,6 +186,12 @@ bool BambooFilter::insert(std::string entry) {
 		for (size_t j = 0; j < BUCKET_SIZE; j++) {
 			if (this->segments[Is].buckets[ibAlternate][j] == EMPTY_BUCKET_ELEMENT) {
 				this->segments[Is].buckets[ibAlternate][j] = f;
+				if (this->expansionTrigger >= SEGMENT_SIZE) {
+					expansionTrigger = 0;
+					this->expand();
+					return true;
+				}
+				expansionTrigger++;
 				return true;
 			}
 		}
@@ -181,8 +205,193 @@ bool BambooFilter::insert(std::string entry) {
 
 	// pozivanje expansiona
 	if (this->expansionTrigger >= SEGMENT_SIZE) {
-		// expand();
+		this->expansionTrigger = 0;
+		this->expand();
+		return true;
+	}
+	expansionTrigger++;
+
+	return true;
+}
+
+bool BambooFilter::expand() {
+	// provjerimo da li mozemo expandat
+	if (this->i >= this->lf) return true;
+
+	// kreiramo novi segment
+	unsigned int num_of_buckets = 1 << lb;
+	Segment segment(num_of_buckets, BUCKET_SIZE);
+	this->segments.push_back(segment);
+	uint32_t newSegmentIndex = this->segments.size() - 1; // index novog segmenta
+
+	// iteriramo se po segmentu kojeg trenutno expandom
+	uint16_t bucketIndex = 0;
+	for (auto& bucket : this->segments[this->p].buckets) {
+		for (size_t j = 0; j < BUCKET_SIZE; j++) {
+			if (bucket[j] != EMPTY_BUCKET_ELEMENT) {
+				uint16_t f = bucket[j]; // fingertip
+
+				// izracunaj treba li fingertip u novi segment
+				uint16_t temp = (f >> this->i) << 15;
+				// ako je ovaj if true, onda mora u novi segment
+				if (temp > 0) {
+					// makni element iz starog segmenta
+					bucket[j] = EMPTY_BUCKET_ELEMENT;
+
+					// izracunaj alternativni bucket index
+					uint16_t fingertipXORBucketIndex = bucketIndex ^ f;
+					uint16_t alternateBucketIndex =
+						fingertipXORBucketIndex % static_cast<uint16_t>(std::pow(2.0, this->lb));
+
+					// insertaj element u novi segment
+					bool insertSuccesful = false;
+					for (size_t k = 0; k < BUCKET_SIZE; k++) {
+						if (this->segments[newSegmentIndex].buckets[bucketIndex][k] == EMPTY_BUCKET_ELEMENT) {
+							this->segments[newSegmentIndex].buckets[bucketIndex][k] = f;
+							insertSuccesful = true;
+							break;
+						}
+					}
+					// insertaj element u novi segment (u alternativni bucket ako je orginalni zauzet)
+					if (!insertSuccesful) {
+						insertSuccesful = false;
+						for (size_t k = 0; k < BUCKET_SIZE; k++) {
+							if (this->segments[newSegmentIndex].buckets[alternateBucketIndex][k] == EMPTY_BUCKET_ELEMENT) {
+								this->segments[newSegmentIndex].buckets[alternateBucketIndex][k] = f;
+								insertSuccesful = true;
+								break;
+							}
+						}
+					}
+					// insertaj element u novi segment (u overflow, ako su bucketi zauzeti)
+					if (!insertSuccesful) {
+						uint32_t reconstructedHash = this->reconstructHash(f, newSegmentIndex, bucketIndex); // rekonstruacija hasha
+						this->segments[newSegmentIndex].overflow.push_back(reconstructedHash);
+					}
+				}
+			}
+		}
+		bucketIndex++;
+	}
+	
+	// iteriramo se po overflowu
+	std::vector<uint32_t> newOverflowForOldSegment; // zamjenski overflow za stari segment
+	newOverflowForOldSegment = std::vector<uint32_t>();
+
+	for (auto element : this->segments[this->p].overflow) {
+		uint16_t f = (element >> (this->lb + this->ls0))
+			% static_cast<uint16_t>((std::pow(2.0, this->lf))); // fingertip
+
+		uint16_t overflowBucketIndex = element % static_cast<uint16_t>(std::pow(2.0, this->lb)); // bucket index
+
+		// alternativni bucket index
+		uint16_t fingertipXORBucketIndex = overflowBucketIndex ^ f;
+		uint16_t alternateOverflowBucketIndex =
+			fingertipXORBucketIndex % static_cast<uint16_t>(std::pow(2.0, this->lb));
+		
+		// dobij segment index
+		uint32_t segmentIndex = (element >> this->lb) %
+			(static_cast<uint32_t>(std::pow(2.0, this->i + 1)) * this->n0);
+
+		// ako treba u novi segment
+		if (segmentIndex == newSegmentIndex) {
+			// insertaj element u novi segment
+			bool insertSuccesful = false;
+			for (size_t k = 0; k < BUCKET_SIZE; k++) {
+				if (this->segments[newSegmentIndex].buckets[overflowBucketIndex][k] == EMPTY_BUCKET_ELEMENT) {
+					this->segments[newSegmentIndex].buckets[overflowBucketIndex][k] = f;
+					insertSuccesful = true;
+					break;
+				}
+			}
+			// insertaj element u novi segment (u alternativni bucket ako je orginalni zauzet)
+			if (!insertSuccesful) {
+				insertSuccesful = false;
+				for (size_t k = 0; k < BUCKET_SIZE; k++) {
+					if (this->segments[newSegmentIndex].buckets[alternateOverflowBucketIndex][k] == EMPTY_BUCKET_ELEMENT) {
+						this->segments[newSegmentIndex].buckets[alternateOverflowBucketIndex][k] = f;
+						insertSuccesful = true;
+						break;
+					}
+				}
+			}
+			// insertaj element u novi segment (u overflow, ako su bucketi zauzeti)
+			if (!insertSuccesful) {
+				this->segments[newSegmentIndex].overflow.push_back(element); // dodaj u overflow novog segmenta
+			}
+		}
+		// ako je segment index jednak starom segmentu provjeri mozes li rasporedit neke elemente u njega
+		else if (segmentIndex == this->p) {
+			// insertaj element u bucket u TRENUTNOM segmentu
+			bool insertSuccesful = false;
+			for (size_t k = 0; k < BUCKET_SIZE; k++) {
+				if (this->segments[this->p].buckets[overflowBucketIndex][k] == EMPTY_BUCKET_ELEMENT) {
+					this->segments[this->p].buckets[overflowBucketIndex][k] = f;
+					insertSuccesful = true;
+					break;
+				}
+			}
+			// insertaj element u bucket u TRENUTNOM segmentu (ako je orginalni bucket pun)
+			if (!insertSuccesful) {
+				insertSuccesful = false;
+				for (size_t k = 0; k < BUCKET_SIZE; k++) {
+					if (this->segments[this->p].buckets[alternateOverflowBucketIndex][k] == EMPTY_BUCKET_ELEMENT) {
+						this->segments[this->p].buckets[alternateOverflowBucketIndex][k] = f;
+						insertSuccesful = true;
+						break;
+					}
+				}
+			}
+			// ostavi element u overflowu
+			if (!insertSuccesful) {
+				newOverflowForOldSegment.push_back(element); // dodaj u overflow novog segmenta ako nema slobodnog mjesta
+			}
+		}
+
+	}
+	this->segments[this->p].overflow = newOverflowForOldSegment; // zamjeni overflow starog segmenta
+
+	this->p++; // povecaj index na index sljedeceg segmenta
+
+	if (this->p == static_cast<uint16_t>(std::pow(2.0, this->i)) * this->n0) {
+		this->p = 0; // resetiraj index
+		this->i++; // povecaj rundu ekspanzije
 	}
 
 	return true;
+}
+
+// funkcija za provjeru da li je element u BambooFilteru
+bool BambooFilter::lookup(std::string entry) {
+	// dobij sve potrebne elemente
+	uint16_t f = this->getFingertip(entry);
+	uint16_t Ib = this->getBucketIndex(entry);
+	uint16_t IbAlternate = this->getAlternateBucketIndex(entry);
+	uint32_t Is = this->getSegmentIndex(entry);
+	if (Is >= this->segments.size())
+		Is = this->getSegmentIndexWithCorrection(entry);
+
+	// pogledaj je li element u bucketima
+	for (size_t j = 0; j < BUCKET_SIZE; j++) {
+		if (this->segments[Is].buckets[Ib][j] == f) {
+			return true;
+		}
+		if (this->segments[Is].buckets[IbAlternate][j] == f) {
+			return true;
+		}
+	}
+
+	// pogledaj je li element u overflowu
+	uint32_t reconstructedHash = this->reconstructHash(f, Is, Ib); // rekonstruacija hasha
+	uint32_t reconstructedHashAlternate = this->reconstructHash(f, Is, IbAlternate); // rekonstruacija hasha s alternativnim bucketom
+	for (auto element : this->segments[Is].overflow) {
+		if (element == reconstructedHash) {
+			return true;
+		}
+		if (element == reconstructedHashAlternate) {
+			return true;
+		}
+	}
+
+	return false;
 }

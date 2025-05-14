@@ -28,6 +28,6 @@ public: // TODO: vrati u private
 	uint32_t getSegmentIndexWithCorrection(std::string entry); // funkcija koja vraca segment index za string entry ako prethodni ne pristaje
 
 	bool insert(std::string entry);
-	//bool expand();
-	//bool lookup(std::string);
+	bool expand();
+	bool lookup(std::string entry);
 };
