@@ -3,12 +3,13 @@
 #include <fstream>
 #include <sstream>
 #include <chrono>
+#include <iomanip>
 #include "BambooFilter.h"
 extern "C" {
 #include "hash/xxhash.h"  
 }
 
-#define K 15
+#define K 30
 
 int main(void) {
 	BambooFilter bf; // inicijalizacija filtera
@@ -25,68 +26,80 @@ int main(void) {
 
 	fileContent.erase(std::remove(fileContent.begin(), fileContent.end(), '\n'), fileContent.end());
 
-	// zapocni brojanje vremena
-	auto start = std::chrono::high_resolution_clock::now();
-	// dodavanje elemenata u filter
-	for (size_t i = 0; i + K <= fileContent.size(); i++) {
-		bf.insert(fileContent.substr(i, K));
-	}
+	// insert
+	std::vector<long long> cumulative_insert_times;
+	long long current_cumulative_insert_time = 0;
+	int insert_count = 0;
+	int insert_report_interval = 1; // koliko puta ponavljam
 
-	// provjera da li je element u filteru
-	//bool wrong = true;
-	//int j = 0;
 	for (size_t i = 0; i + K <= fileContent.size(); i++) {
-		//j++;
-		auto val = bf.lookup(fileContent.substr(i, K));
-		if (val == false) {
-			//wrong = false;
-			break;
+		auto insert_start = std::chrono::high_resolution_clock::now();
+		bf.insert(fileContent.substr(i, K));
+		auto insert_end = std::chrono::high_resolution_clock::now();
+		auto insert_duration = std::chrono::duration_cast<std::chrono::microseconds>(insert_end - insert_start).count();
+
+		current_cumulative_insert_time += insert_duration;
+		insert_count++;
+
+		if (insert_count % insert_report_interval == 0) {
+			cumulative_insert_times.push_back(current_cumulative_insert_time);
+			current_cumulative_insert_time = 0; // reset
 		}
 	}
 
-	//if (wrong == true) {
-		//std::cout << "TOCNO " << j << std::endl;
-	//}
+	// Kusur
+	if (current_cumulative_insert_time > 0) {
+		cumulative_insert_times.push_back(current_cumulative_insert_time);
+	}
 
-	// zavrsi brojanje vremena
-	auto end = std::chrono::high_resolution_clock::now();
-	std::chrono::duration<double> elapsed = end - start;
-	std::cout << "Elapsed time: " << elapsed.count() << " seconds" << std::endl;
+	// Lookup
+	std::vector<long long> cumulative_lookup_times;
+	long long current_cumulative_lookup_time = 0;
+	int lookup_count = 0;
+	int lookup_report_interval = 1; // koliko puta ponavljam
 
-	// zapocni brojanje vremena
-	start = std::chrono::high_resolution_clock::now();
-	std::cout << bf.lookup("TGGAAAACATACTGC") << std::endl;
-	// zavrsi brojanje vremena
-	end = std::chrono::high_resolution_clock::now();
-	elapsed = end - start;
-	std::cout << "Elapsed time: " << elapsed.count() << " seconds" << std::endl;
+	for (size_t i = 0; i + K <= fileContent.size(); i++) {
+		auto lookup_start = std::chrono::high_resolution_clock::now();
+		bf.lookup(fileContent.substr(i, K));
+		auto lookup_end = std::chrono::high_resolution_clock::now();
+		auto lookup_duration = std::chrono::duration_cast<std::chrono::microseconds>(lookup_end - lookup_start).count();
 
-	// zapocni brojanje vremena
-	start = std::chrono::high_resolution_clock::now();
-	std::cout << bf.lookup("TGGAAAACAMMMTGC") << std::endl;
-	// zavrsi brojanje vremena
-	end = std::chrono::high_resolution_clock::now();
-	elapsed = end - start;
-	std::cout << "Elapsed time: " << elapsed.count() << " seconds" << std::endl;
+		current_cumulative_lookup_time += lookup_duration;
+		lookup_count++;
 
-	// DEBUG STATEMENTS:
-	/*
-	std::cout << bf.lookup("TGGAAAACATACTGC") << std::endl;
-	std::cout << bf.lookup("TGGAAAACAMMMTGC") << std::endl;
-	std::cout << "BOk";
-	uint32_t tralelrotralala = reconstructHash1(1, 1548575, 3);
-	std::cout << tralelrotralala;
-	bf.segments[0].buckets[0][0] = 1;
+		if (lookup_count % lookup_report_interval == 0) {
+			cumulative_lookup_times.push_back(current_cumulative_lookup_time);
+			current_cumulative_lookup_time = 0; // reset
+		}
+	}
 
-	std::cout << "TEST" << std::endl;
+	// Kusur
+	if (current_cumulative_lookup_time > 0) {
+		cumulative_lookup_times.push_back(current_cumulative_lookup_time);
+	}
 
-	bf.getFingertip("test");
-	bf.getBucketIndex("test");
-	bf.getAlternateBucketIndex("test");
-	bf.getSegmentIndex("test");
-	bf.getSegmentIndexWithCorrection("test");
-	*/
+	// CSV
+	std::ofstream csv_file("bamboo_filter_timings.csv");
+	if (!csv_file.is_open()) {
+		std::cerr << "Error opening CSV file for writing!" << std::endl;
+		return 1;
+	}
 
+	// Upis insert
+	csv_file << "Operation,Interval Start Index,Cumulative Time (microseconds)\n";
+	for (size_t i = 0; i < cumulative_insert_times.size(); i++) {
+		csv_file << "Insert," << i * insert_report_interval << "," << cumulative_insert_times[i] << "\n";
+	}
+
+	// Upis lookup
+	csv_file << "\nLookup Cumulative,Interval Start Index,Cumulative Time (microseconds)\n";
+	for (size_t i = 0; i < cumulative_lookup_times.size(); i++) {
+		csv_file << "," << i * lookup_report_interval << "," << cumulative_lookup_times[i] << "\n";
+	}
+
+	csv_file.close();
+
+	std::cout << "Zapisano\n";
 
 	return 0;
 }
