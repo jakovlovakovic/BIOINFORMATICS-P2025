@@ -1,0 +1,9 @@
+# size of K
+15
+# time analysis
+1
+# elements to lookup
+ATATAGGCATAGCGC
+CACGGGCGATCAGAC
+GAAAAAATTCTCCGT
+THISISWRONG!!!!
