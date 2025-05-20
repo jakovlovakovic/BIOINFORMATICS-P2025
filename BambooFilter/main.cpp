@@ -30,7 +30,7 @@ int main(void) {
 	std::vector<long long> cumulative_insert_times;
 	long long current_cumulative_insert_time = 0;
 	int insert_count = 0;
-	int insert_report_interval = 1; // koliko puta ponavljam
+	int insert_report_interval = 10000; // koliko puta ponavljam
 
 	for (size_t i = 0; i + K <= fileContent.size(); i++) {
 		auto insert_start = std::chrono::high_resolution_clock::now();
@@ -56,7 +56,7 @@ int main(void) {
 	std::vector<long long> cumulative_lookup_times;
 	long long current_cumulative_lookup_time = 0;
 	int lookup_count = 0;
-	int lookup_report_interval = 1; // koliko puta ponavljam
+	int lookup_report_interval = 10000; // koliko puta ponavljam
 
 	for (size_t i = 0; i + K <= fileContent.size(); i++) {
 		auto lookup_start = std::chrono::high_resolution_clock::now();
