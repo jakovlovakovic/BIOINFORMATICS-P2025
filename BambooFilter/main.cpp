@@ -10,11 +10,20 @@ extern "C" {
 #include "hash/xxhash.h"  
 }
 
-int main(void) {
+int main(int argc, char* argv[]) {
 	// citanje konfiguracijske datoteke
+	std::string configFilePath;
+	if (argc > 1) {
+		configFilePath = argv[1];
+	}
+	else {
+		std::cerr << "Failed to open config file.\n";
+		return 1;
+	}
+
 	std::cout << "Initializing parameters from config file...\n";
 
-	std::ifstream configFile("filter_config.txt");
+	std::ifstream configFile(configFilePath);
 	if (!configFile.is_open()) {
 		std::cerr << "Failed to open config file.\n";
 		return 1;
@@ -42,7 +51,10 @@ int main(void) {
 	BambooFilter bf; // inicijalizacija filtera
 
 	// citanje filea
-	std::ifstream file("GCA_000005845.2_ASM584v2_genomic.fna");
+	if (argc > 1) {
+		configFilePath = argv[2];
+	}
+	std::ifstream file(configFilePath);
 	if (!file.is_open()) {
 		return 1;
 	}
