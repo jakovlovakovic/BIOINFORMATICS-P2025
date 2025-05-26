@@ -11,21 +11,23 @@ extern "C" {
 }
 
 int main(int argc, char* argv[]) {
+	// otvori output file
+	std::ofstream outFile("output.txt");
 	// citanje konfiguracijske datoteke
 	std::string configFilePath;
 	if (argc > 1) {
 		configFilePath = argv[1];
 	}
 	else {
-		std::cerr << "Failed to open config file.\n";
+		outFile << "Failed to open config file.\n";
 		return 1;
 	}
 
-	std::cout << "Initializing parameters from config file...\n";
+	outFile << "Initializing parameters from config file...\n";
 
 	std::ifstream configFile(configFilePath);
 	if (!configFile.is_open()) {
-		std::cerr << "Failed to open config file.\n";
+		outFile << "Failed to open config file.\n";
 		return 1;
 	}
 
@@ -44,9 +46,9 @@ int main(int argc, char* argv[]) {
 		elementsToLookup.push_back(lines[i]);
 	}
 
-	std::cout << "Parameters from config file initialized.\n";
+	outFile << "Parameters from config file initialized.\n";
 
-	std::cout << "Initializing BambooFilter...\n";
+	outFile << "Initializing BambooFilter...\n";
 
 	BambooFilter bf; // inicijalizacija filtera
 
@@ -86,7 +88,7 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
-	std::cout << "Filter initialized.\n";
+	outFile << "Filter initialized.\n";
 
 	if (forAnalyze) {
 		// Kusur
@@ -123,7 +125,7 @@ int main(int argc, char* argv[]) {
 		// CSV
 		std::ofstream csv_file("bamboo_filter_timings.csv");
 		if (!csv_file.is_open()) {
-			std::cerr << "Error opening CSV file for writing!" << std::endl;
+			outFile << "Error opening CSV file for writing!" << std::endl;
 			return 1;
 		}
 
@@ -141,20 +143,22 @@ int main(int argc, char* argv[]) {
 
 		csv_file.close();
 
-		std::cout << "Analysis written in .csv file.\n";
+		outFile << "Analysis written in .csv file.\n";
 	}
 
-	std::cout << "Starting lookup operations...\n";
+	outFile << "Starting lookup operations...\n";
 	for (auto& element : elementsToLookup) {
 		bool result = bf.lookup(element);
 
 		if (result) {
-			std::cout << "Lookup for " << element << " successful.\n";
+			outFile << "Lookup for " << element << " successful.\n";
 		}
 		else {
-			std::cout << "Lookup for " << element << " failed.\n";
+			outFile << "Lookup for " << element << " failed.\n";
 		}
 	}
+
+	outFile.close();
 
 	return 0;
 }

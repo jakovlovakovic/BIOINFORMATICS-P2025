@@ -27,7 +27,7 @@ public: // TODO: vrati u private
 	uint32_t getSegmentIndex(std::string entry); // funkcija koja vraca segment index za string entry
 	uint32_t getSegmentIndexWithCorrection(std::string entry); // funkcija koja vraca segment index za string entry ako prethodni ne pristaje
 
-	bool insert(std::string entry);
-	bool expand();
-	bool lookup(std::string entry);
+	bool insert(std::string entry); // funkcija koja ubacuje string entry u filter
+	bool expand(); // funkcija koja prosiruje fitler
+	bool lookup(std::string entry); // funkcija koja provjera da li string entry postoji u filteru
 };

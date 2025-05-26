@@ -214,6 +214,7 @@ bool BambooFilter::insert(std::string entry) {
 	return true;
 }
 
+// funkcija koja prosiruje fitler
 bool BambooFilter::expand() {
 	// provjerimo da li mozemo expandat
 	if (this->i >= this->lf) return true;
