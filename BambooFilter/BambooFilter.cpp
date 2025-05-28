@@ -53,11 +53,11 @@ BambooFilter::BambooFilter() {
 }
 
 // calculate fingerprint
-uint16_t BambooFilter::getFingertip(std::string entry) {
+uint16_t BambooFilter::getFingerprint(std::string entry) {
 	uint32_t hash = XXH32(entry.c_str(), entry.length(), 0);
-	uint16_t fingertip = (hash >> (this->lb + this->ls0))
+	uint16_t fingerprint = (hash >> (this->lb + this->ls0))
 		% static_cast<uint16_t>((std::pow(2.0, this->lf))); // fingerprint
-	return fingertip;
+	return fingerprint;
 }
 
 // calculate bucket index
@@ -69,9 +69,9 @@ uint16_t BambooFilter::getBucketIndex(std::string entry) {
 
 // calculate alternate bucket index
 uint16_t BambooFilter::getAlternateBucketIndex(std::string entry) {
-	uint16_t fingertipXORBucketIndex = this->getBucketIndex(entry) ^ this->getFingertip(entry);
+	uint16_t fingerprintXORBucketIndex = this->getBucketIndex(entry) ^ this->getFingerprint(entry);
 	uint16_t alternateBucketIndex =
-		fingertipXORBucketIndex % static_cast<uint16_t>(std::pow(2.0, this->lb));
+		fingerprintXORBucketIndex % static_cast<uint16_t>(std::pow(2.0, this->lb));
 	return alternateBucketIndex;
 }
 
@@ -111,11 +111,11 @@ uint32_t BambooFilter::reconstructHash(uint16_t f, uint32_t Is, uint16_t Ib) {
 
 	uint32_t mask = UINT32_MAX << difference; // calculate operation mask
 
-	uint32_t newFingertip = (f & mask) << (this->ls0 + this->lb); // calculate new fingerprint
+	uint32_t newFingerprint = (f & mask) << (this->ls0 + this->lb); // calculate new fingerprint
 
 	uint32_t segementIndexBucketIndex = (Is << this->lb) | Ib; // calculate segment index and bucket index joined
 
-	uint32_t reconstructedHash = newFingertip | segementIndexBucketIndex; // the whole reconstructed hash
+	uint32_t reconstructedHash = newFingerprint | segementIndexBucketIndex; // the whole reconstructed hash
 
 	return reconstructedHash;
 }
@@ -123,7 +123,7 @@ uint32_t BambooFilter::reconstructHash(uint16_t f, uint32_t Is, uint16_t Ib) {
 // insert function of the BambooFilter
 bool BambooFilter::insert(std::string entry) {
 	// fingerprint
-	uint16_t f = this->getFingertip(entry);
+	uint16_t f = this->getFingerprint(entry);
 	// bucket index
 	uint16_t Ib = this->getBucketIndex(entry);
 	// alternate bucket index
@@ -178,9 +178,9 @@ bool BambooFilter::insert(std::string entry) {
 		std::swap(f, this->segments[Is].buckets[ib][randomIndex]);
 
 		// get alternate bucket for "new" f
-		uint16_t fingertipXORBucketIndex = ib ^ f;
+		uint16_t fingerprintXORBucketIndex = ib ^ f;
 		uint16_t ibAlternate =
-			fingertipXORBucketIndex % static_cast<uint16_t>(std::pow(2.0, this->lb));
+			fingerprintXORBucketIndex % static_cast<uint16_t>(std::pow(2.0, this->lb));
 
 		// check if the bucket with index IbAlternate has en empty entry
 		for (size_t j = 0; j < BUCKET_SIZE; j++) {
@@ -240,9 +240,9 @@ bool BambooFilter::expand() {
 					bucket[j] = EMPTY_BUCKET_ELEMENT;
 
 					// calculate alternate bucket index
-					uint16_t fingertipXORBucketIndex = bucketIndex ^ f;
+					uint16_t fingerprintXORBucketIndex = bucketIndex ^ f;
 					uint16_t alternateBucketIndex =
-						fingertipXORBucketIndex % static_cast<uint16_t>(std::pow(2.0, this->lb));
+						fingerprintXORBucketIndex % static_cast<uint16_t>(std::pow(2.0, this->lb));
 
 					// insert element into new segment
 					bool insertSuccesful = false;
@@ -286,9 +286,9 @@ bool BambooFilter::expand() {
 		uint16_t overflowBucketIndex = element % static_cast<uint16_t>(std::pow(2.0, this->lb)); // bucket index
 
 		// alternate bucket index
-		uint16_t fingertipXORBucketIndex = overflowBucketIndex ^ f;
+		uint16_t fingerprintXORBucketIndex = overflowBucketIndex ^ f;
 		uint16_t alternateOverflowBucketIndex =
-			fingertipXORBucketIndex % static_cast<uint16_t>(std::pow(2.0, this->lb));
+			fingerprintXORBucketIndex % static_cast<uint16_t>(std::pow(2.0, this->lb));
 		
 		// get segment index
 		uint32_t segmentIndex = (element >> this->lb) %
@@ -365,7 +365,7 @@ bool BambooFilter::expand() {
 // lookup function of the BambooFilter
 bool BambooFilter::lookup(std::string entry) {
 	// get all the necessary elements
-	uint16_t f = this->getFingertip(entry);
+	uint16_t f = this->getFingerprint(entry);
 	uint16_t Ib = this->getBucketIndex(entry);
 	uint16_t IbAlternate = this->getAlternateBucketIndex(entry);
 	uint32_t Is = this->getSegmentIndex(entry);

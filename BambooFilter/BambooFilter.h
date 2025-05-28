@@ -21,7 +21,7 @@ public: // TODO: vrati u private
 	BambooFilter();
 	//~BambooFilter();
 
-	uint16_t getFingertip(std::string entry); // funkcija koja vraca fingertip za string entry
+	uint16_t getFingerprint(std::string entry); // funkcija koja vraca fingertip za string entry
 	uint16_t getBucketIndex(std::string entry); // funkcija koja vraca bucket index za string entry
 	uint16_t getAlternateBucketIndex(std::string entry); // funkcija koja vraca alternativni bucket index za string entry
 	uint32_t getSegmentIndex(std::string entry); // funkcija koja vraca segment index za string entry
