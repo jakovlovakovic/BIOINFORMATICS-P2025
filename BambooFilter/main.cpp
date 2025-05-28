@@ -11,9 +11,9 @@ extern "C" {
 }
 
 int main(int argc, char* argv[]) {
-	// otvori output file
+	// open input file
 	std::ofstream outFile("output.txt");
-	// citanje konfiguracijske datoteke
+	// read configuration file
 	std::string configFilePath;
 	if (argc > 1) {
 		configFilePath = argv[1];
@@ -39,8 +39,8 @@ int main(int argc, char* argv[]) {
 	configFile.close();
 
 	// parsing lines
-	size_t K = std::stoul(lines[0]); // velicina K
-	bool forAnalyze = lines[1][0] == '1' ? true : false; // da li je za analizu ili ne
+	size_t K = std::stoul(lines[0]); // size K from config
+	bool forAnalyze = lines[1][0] == '1' ? true : false; // analasis mode yes/no
 	std::vector<std::string> elementsToLookup;
 	for (size_t i = 2; i < lines.size(); i++) {
 		elementsToLookup.push_back(lines[i]);
@@ -50,9 +50,9 @@ int main(int argc, char* argv[]) {
 
 	outFile << "Initializing BambooFilter...\n";
 
-	BambooFilter bf; // inicijalizacija filtera
+	BambooFilter bf; // initialise BambooFilter
 
-	// citanje filea
+	// read the dna file
 	if (argc > 1) {
 		configFilePath = argv[2];
 	}
@@ -67,11 +67,12 @@ int main(int argc, char* argv[]) {
 
 	fileContent.erase(std::remove(fileContent.begin(), fileContent.end(), '\n'), fileContent.end());
 
-	// insert
+	// insert time statistic
 	std::vector<long long> cumulative_insert_times;
 	long long current_cumulative_insert_time = 0;
 	int insert_count = 0;
-	int insert_report_interval = 10000; // koliko puta ponavljam
+	/*experimental trial showed that 10000 entries per time mesurment was the best amount as it has few/no instances of 0 microseconds per 10000 inserts*/
+	int insert_report_interval = 10000; // how many inserts to be taken into acount in the report
 
 	for (size_t i = 0; i + K <= fileContent.size(); i++) {
 		auto insert_start = std::chrono::high_resolution_clock::now();
@@ -88,19 +89,20 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
+	// The entries not belonging in a set of 10000
+	if (current_cumulative_insert_time > 0) {
+		cumulative_insert_times.push_back(current_cumulative_insert_time);
+	}
+
 	outFile << "Filter initialized.\n";
 
 	if (forAnalyze) {
-		// Kusur
-		if (current_cumulative_insert_time > 0) {
-			cumulative_insert_times.push_back(current_cumulative_insert_time);
-		}
 
-		// Lookup
+		// Lookup time statistic
 		std::vector<long long> cumulative_lookup_times;
 		long long current_cumulative_lookup_time = 0;
 		int lookup_count = 0;
-		int lookup_report_interval = 10000; // koliko puta ponavljam
+		int lookup_report_interval = 10000; // how many lookups to be taken into account in the report
 
 		for (size_t i = 0; i + K <= fileContent.size(); i++) {
 			auto lookup_start = std::chrono::high_resolution_clock::now();
@@ -117,12 +119,12 @@ int main(int argc, char* argv[]) {
 			}
 		}
 
-		// Kusur
+		// The entries not belonging in a set of 10000
 		if (current_cumulative_lookup_time > 0) {
 			cumulative_lookup_times.push_back(current_cumulative_lookup_time);
 		}
 
-		// CSV
+		// CSV file write
 		std::ofstream csv_file("bamboo_filter_timings.csv");
 		if (!csv_file.is_open()) {
 			outFile << "Error opening CSV file for writing!" << std::endl;
@@ -130,15 +132,15 @@ int main(int argc, char* argv[]) {
 		}
 
 		// Upis insert
-		csv_file << "Operation,Interval Start Index,Cumulative Time (microseconds)\n";
+		csv_file << "Operation, Interval Start Index, Cumulative Time (microseconds)\n";
 		for (size_t i = 0; i < cumulative_insert_times.size(); i++) {
 			csv_file << "Insert," << i * insert_report_interval << "," << cumulative_insert_times[i] << "\n";
 		}
 
 		// Upis lookup
-		csv_file << "\nLookup Cumulative,Interval Start Index,Cumulative Time (microseconds)\n";
+		csv_file << "\nOperation ,Interval Start Index,Cumulative Time (microseconds)\n";
 		for (size_t i = 0; i < cumulative_lookup_times.size(); i++) {
-			csv_file << "," << i * lookup_report_interval << "," << cumulative_lookup_times[i] << "\n";
+			csv_file << "Lookup," << i * lookup_report_interval << "," << cumulative_lookup_times[i] << "\n";
 		}
 
 		csv_file.close();

@@ -7,7 +7,7 @@ extern "C" {
 	#include "hash/xxhash.h"  
 }
 
-#define EMPTY_BUCKET_ELEMENT 32768 // oznaka praznog elementa u bucketu
+#define EMPTY_BUCKET_ELEMENT 32768 // represents an empty bucket element
 #define BUCKET_SIZE 4
 #define SEGMENT_SIZE 16
 
@@ -16,14 +16,14 @@ std::random_device rd;
 std::mt19937 gen(rd());
 std::uniform_int_distribution<> dis(0, BUCKET_SIZE - 1);
 
-// konstruktor za segment
+// konstruktor for a segment
 Segment::Segment(size_t num_of_buckets, size_t bucket_size) {
 	for (size_t j = 0; j < num_of_buckets; j++) {
 		std::vector<uint16_t> bucket;
 		bucket.resize(bucket_size);
 
 		for (size_t k = 0; k < bucket_size; k++) {
-			bucket[k] = EMPTY_BUCKET_ELEMENT; // inicijaliziramo sve elemente u bucketu na oznaku praznog elementa
+			bucket[k] = EMPTY_BUCKET_ELEMENT; // initialise every element as en empty bucket element
 		}
 
 		buckets.push_back(bucket);
@@ -32,42 +32,42 @@ Segment::Segment(size_t num_of_buckets, size_t bucket_size) {
 	this->overflow = std::vector<uint32_t>();
 }
 
-// konstruktor za BambooFilter
+// konstruktor for the BambooFilter
 BambooFilter::BambooFilter() {
-	// koristimo 32-bitni hash
-	this->i = 0; // runda ekspanzije
-	this->p = 0; // index sljedeceg za expandanje
-	this->n0 = 524288; // pocetan broj segmenata (2^19)
-	this->lf = 11; // velicina fingertipa
-	this->lb = 2; // velicina indexa bucketa (2 bita)
-	this->ls0 = 19; // velicina indexa segmenta (19 bitova)
-	this->Me = SEGMENT_SIZE; // varijable Me iz insert funkcije
-	this->expansionTrigger = 0; // trigger za ekspanziju
+	// using 32-bit hash
+	this->i = 0; // expention round
+	this->p = 0; // next segment index to expand
+	this->n0 = 524288; // initial number of segments (2^19)
+	this->lf = 11; // fingerprint size (11 bits)
+	this->lb = 2; // bucket index size (2 bits)
+	this->ls0 = 19; // segment index size (19 bits)
+	this->Me = SEGMENT_SIZE; // variable Me from insert function
+	this->expansionTrigger = 0; // expansion trigger
 
 	unsigned int num_of_buckets = 1 << lb;
 
     for (int j = 0; j < n0; j++) {
-		Segment segment(num_of_buckets, BUCKET_SIZE); // inicijaliziramo segment (1 << lb je 2^lb), TODO: dodati velicinu bucketa
+		Segment segment(num_of_buckets, BUCKET_SIZE); // inicialise segment (1 << lb is 2^lb), TODO: dodati velicinu bucketa
         this->segments.push_back(segment);
     }
 }
 
-// funkcija za racunanje fingertipa
+// calculate fingerprint
 uint16_t BambooFilter::getFingertip(std::string entry) {
 	uint32_t hash = XXH32(entry.c_str(), entry.length(), 0);
 	uint16_t fingertip = (hash >> (this->lb + this->ls0))
-		% static_cast<uint16_t>((std::pow(2.0, this->lf))); // fingertip
+		% static_cast<uint16_t>((std::pow(2.0, this->lf))); // fingerprint
 	return fingertip;
 }
 
-// funkcija za racunanje bucket indexa
+// calculate bucket index
 uint16_t BambooFilter::getBucketIndex(std::string entry) {
 	uint32_t hash = XXH32(entry.c_str(), entry.length(), 0);
 	uint16_t bucketIndex = hash % static_cast<uint16_t>(std::pow(2.0, this->lb));
 	return bucketIndex;
 }
 
-// funkcija za racunanje alternativnog bucket indexa
+// calculate alternate bucket index
 uint16_t BambooFilter::getAlternateBucketIndex(std::string entry) {
 	uint16_t fingertipXORBucketIndex = this->getBucketIndex(entry) ^ this->getFingertip(entry);
 	uint16_t alternateBucketIndex =
@@ -75,7 +75,7 @@ uint16_t BambooFilter::getAlternateBucketIndex(std::string entry) {
 	return alternateBucketIndex;
 }
 
-// funkcija za racunanje segment indexa
+// calculate segment indexa
 uint32_t BambooFilter::getSegmentIndex(std::string entry) {
 	uint32_t hash = XXH32(entry.c_str(), entry.length(), 0);
 	uint32_t segmentIndex = (hash >> this->lb) % 
@@ -83,7 +83,7 @@ uint32_t BambooFilter::getSegmentIndex(std::string entry) {
 	return segmentIndex;
 }
 
-// funkcija za racunanje segment indexa s korekcijom
+// calculate segment indexa with correction
 uint32_t BambooFilter::getSegmentIndexWithCorrection(std::string entry) {
 	uint32_t hash = XXH32(entry.c_str(), entry.length(), 0);
 	uint32_t segmentIndex = (hash >> this->lb) %
@@ -92,7 +92,7 @@ uint32_t BambooFilter::getSegmentIndexWithCorrection(std::string entry) {
 	return segmentIndex;
 }
 
-// helper funkcija za dobivanje velicine broja u bitovima
+// helper funkction gets the bit length of a number
 size_t BambooFilter::getBitLength(uint32_t n) {
 	if (n == 0) {
 		return 0;
@@ -100,29 +100,29 @@ size_t BambooFilter::getBitLength(uint32_t n) {
 	return static_cast<int>(std::log2(n)) + 1;
 }
 
-// funkcija za rekonstrukciju hasha
+// reconstruct hash from fingerprint, segment index and bucket index
 uint32_t BambooFilter::reconstructHash(uint16_t f, uint32_t Is, uint16_t Ib) {
-	size_t segmentIndexSize = this->getBitLength(Is); // dobij velicinu segment indexa
+	size_t segmentIndexSize = this->getBitLength(Is); // get segment index size
 	
-	// izracunaj koliko "krademo" bitova fingertipa
+	// calculate the difference between segment index size and ls0
 	size_t difference;
 	if (segmentIndexSize <= this->ls0) difference = 0;
 	else difference = segmentIndexSize - this->ls0;
 
-	uint32_t mask = UINT32_MAX << difference; // izracun maske koja ce se koristiti za operaciju i nad fingertipom
+	uint32_t mask = UINT32_MAX << difference; // calculate operation mask
 
-	uint32_t newFingertip = (f & mask) << (this->ls0 + this->lb); // izracunaj novi fingertip
+	uint32_t newFingertip = (f & mask) << (this->ls0 + this->lb); // calculate new fingerprint
 
-	uint32_t segementIndexBucketIndex = (Is << this->lb) | Ib; // izracunaj spojeni segment index i bucket index
+	uint32_t segementIndexBucketIndex = (Is << this->lb) | Ib; // calculate segment index and bucket index joined
 
-	uint32_t reconstructedHash = newFingertip | segementIndexBucketIndex; // izracunaj rekonstruirani hash
+	uint32_t reconstructedHash = newFingertip | segementIndexBucketIndex; // the whole reconstructed hash
 
 	return reconstructedHash;
 }
 
-// funkcija za umetanje elementa u BambooFilter
+// insert function of the BambooFilter
 bool BambooFilter::insert(std::string entry) {
-	// fingertip
+	// fingerprint
 	uint16_t f = this->getFingertip(entry);
 	// bucket index
 	uint16_t Ib = this->getBucketIndex(entry);
@@ -135,12 +135,12 @@ bool BambooFilter::insert(std::string entry) {
 	if (Is >= this->segments.size())
 		Is = this->getSegmentIndexWithCorrection(entry);
 
-	// provjerimo ima li bucket s indexom Ib prazan entry
+	// check if the bucket with index Ib has an empty entry
 	for (size_t j = 0; j < BUCKET_SIZE; j++) {
 		if (this->segments[Is].buckets[Ib][j] == EMPTY_BUCKET_ELEMENT) {
 			this->segments[Is].buckets[Ib][j] = f;
 
-			// provjeri treba li expendat, i expandaj ako treba
+			// check the expention trigger expand if necessary
 			if (this->expansionTrigger >= SEGMENT_SIZE) {
 				this->expansionTrigger = 0;
 				this->expand();
@@ -152,12 +152,12 @@ bool BambooFilter::insert(std::string entry) {
 		}
 	}
 
-	// provjerimo ima li bucket s indexom IbAlternate prazan entry
+	// check if the alternate bucket with index IbAlternate has an empty entry
 	for (size_t j = 0; j < BUCKET_SIZE; j++) {
 		if (this->segments[Is].buckets[IbAlternate][j] == EMPTY_BUCKET_ELEMENT) {
 			this->segments[Is].buckets[IbAlternate][j] = f;
 
-			// provjeri treba li expendat, i expandaj ako treba
+			// check the expention trigger expand if necessary
 			if (this->expansionTrigger >= SEGMENT_SIZE) {
 				this->expansionTrigger = 0;
 				this->expand();
@@ -169,20 +169,20 @@ bool BambooFilter::insert(std::string entry) {
 		}
 	}
 
-	// randomly selectaj Ib ili IbAlternate
+	// randomly select Ib or IbAlternate
 	uint16_t ib = (dis(gen) >= BUCKET_SIZE / 2) ? Ib : IbAlternate;
 	uint16_t ibOld = Ib;
 	for (size_t loop = 0; loop < this->Me; loop++) {
-		// randomly selectaj element iz bucketa
+		// randomly select element from bucketa
 		uint16_t randomIndex = dis(gen);
 		std::swap(f, this->segments[Is].buckets[ib][randomIndex]);
 
-		// dobimo alternativni bucket za "novi" f
+		// get alternate bucket for "new" f
 		uint16_t fingertipXORBucketIndex = ib ^ f;
 		uint16_t ibAlternate =
 			fingertipXORBucketIndex % static_cast<uint16_t>(std::pow(2.0, this->lb));
 
-		// provjerimo ima li bucket s indexom IbAlternate prazan entry
+		// check if the bucket with index IbAlternate has en empty entry
 		for (size_t j = 0; j < BUCKET_SIZE; j++) {
 			if (this->segments[Is].buckets[ibAlternate][j] == EMPTY_BUCKET_ELEMENT) {
 				this->segments[Is].buckets[ibAlternate][j] = f;
@@ -196,14 +196,14 @@ bool BambooFilter::insert(std::string entry) {
 			}
 		}
 
-		ibOld = ib; // spremi stari ib
-		ib = ibAlternate; // priprema za sljedecu iteraciju
+		ibOld = ib; // spremi old ib
+		ib = ibAlternate; // preparation for next iteration
 	}
 
-	uint32_t reconstructedHash = this->reconstructHash(f, Is, ibOld); // rekonstruacija hasha
-	this->segments[Is].overflow.push_back(reconstructedHash); // dodaj u overflow
+	uint32_t reconstructedHash = this->reconstructHash(f, Is, ibOld); // rekonstruact the hash
+	this->segments[Is].overflow.push_back(reconstructedHash); // add to overflow
 
-	// pozivanje expansiona
+	// call expansion
 	if (this->expansionTrigger >= SEGMENT_SIZE) {
 		this->expansionTrigger = 0;
 		this->expand();
@@ -214,37 +214,37 @@ bool BambooFilter::insert(std::string entry) {
 	return true;
 }
 
-// funkcija koja prosiruje fitler
+// expand function of the BambooFilter
 bool BambooFilter::expand() {
-	// provjerimo da li mozemo expandat
+	// check if we can expand
 	if (this->i >= this->lf) return true;
 
-	// kreiramo novi segment
+	// create a new segment
 	unsigned int num_of_buckets = 1 << lb;
 	Segment segment(num_of_buckets, BUCKET_SIZE);
 	this->segments.push_back(segment);
-	uint32_t newSegmentIndex = this->segments.size() - 1; // index novog segmenta
+	uint32_t newSegmentIndex = this->segments.size() - 1; // index for new segmenta
 
-	// iteriramo se po segmentu kojeg trenutno expandom
+	// iterate over the current segment that is being expanded
 	uint16_t bucketIndex = 0;
 	for (auto& bucket : this->segments[this->p].buckets) {
 		for (size_t j = 0; j < BUCKET_SIZE; j++) {
 			if (bucket[j] != EMPTY_BUCKET_ELEMENT) {
-				uint16_t f = bucket[j]; // fingertip
+				uint16_t f = bucket[j]; // fingeprint
 
-				// izracunaj treba li fingertip u novi segment
+				// calculate if the fingerprint needs to be moved into the new segment
 				uint16_t temp = (f >> this->i) << 15;
-				// ako je ovaj if true, onda mora u novi segment
+				// if true, then move it to the new segment
 				if (temp > 0) {
-					// makni element iz starog segmenta
+					// remove the element from the old segment
 					bucket[j] = EMPTY_BUCKET_ELEMENT;
 
-					// izracunaj alternativni bucket index
+					// calculate alternate bucket index
 					uint16_t fingertipXORBucketIndex = bucketIndex ^ f;
 					uint16_t alternateBucketIndex =
 						fingertipXORBucketIndex % static_cast<uint16_t>(std::pow(2.0, this->lb));
 
-					// insertaj element u novi segment
+					// insert element into new segment
 					bool insertSuccesful = false;
 					for (size_t k = 0; k < BUCKET_SIZE; k++) {
 						if (this->segments[newSegmentIndex].buckets[bucketIndex][k] == EMPTY_BUCKET_ELEMENT) {
@@ -253,7 +253,7 @@ bool BambooFilter::expand() {
 							break;
 						}
 					}
-					// insertaj element u novi segment (u alternativni bucket ako je orginalni zauzet)
+					// insert element into new segment (alternate bucket)
 					if (!insertSuccesful) {
 						insertSuccesful = false;
 						for (size_t k = 0; k < BUCKET_SIZE; k++) {
@@ -264,9 +264,9 @@ bool BambooFilter::expand() {
 							}
 						}
 					}
-					// insertaj element u novi segment (u overflow, ako su bucketi zauzeti)
+					// insert element into new segment (overflow)
 					if (!insertSuccesful) {
-						uint32_t reconstructedHash = this->reconstructHash(f, newSegmentIndex, bucketIndex); // rekonstruacija hasha
+						uint32_t reconstructedHash = this->reconstructHash(f, newSegmentIndex, bucketIndex); // reconstruct hash
 						this->segments[newSegmentIndex].overflow.push_back(reconstructedHash);
 					}
 				}
@@ -275,28 +275,28 @@ bool BambooFilter::expand() {
 		bucketIndex++;
 	}
 	
-	// iteriramo se po overflowu
-	std::vector<uint32_t> newOverflowForOldSegment; // zamjenski overflow za stari segment
+	// iterate over the overflow
+	std::vector<uint32_t> newOverflowForOldSegment; // new overflow for old segment
 	newOverflowForOldSegment = std::vector<uint32_t>();
 
 	for (auto element : this->segments[this->p].overflow) {
 		uint16_t f = (element >> (this->lb + this->ls0))
-			% static_cast<uint16_t>((std::pow(2.0, this->lf))); // fingertip
+			% static_cast<uint16_t>((std::pow(2.0, this->lf))); // fingerprint
 
 		uint16_t overflowBucketIndex = element % static_cast<uint16_t>(std::pow(2.0, this->lb)); // bucket index
 
-		// alternativni bucket index
+		// alternate bucket index
 		uint16_t fingertipXORBucketIndex = overflowBucketIndex ^ f;
 		uint16_t alternateOverflowBucketIndex =
 			fingertipXORBucketIndex % static_cast<uint16_t>(std::pow(2.0, this->lb));
 		
-		// dobij segment index
+		// get segment index
 		uint32_t segmentIndex = (element >> this->lb) %
 			(static_cast<uint32_t>(std::pow(2.0, this->i + 1)) * this->n0);
 
-		// ako treba u novi segment
+		// insert element into the new segment if necessary
 		if (segmentIndex == newSegmentIndex) {
-			// insertaj element u novi segment
+			// insert element into new segment
 			bool insertSuccesful = false;
 			for (size_t k = 0; k < BUCKET_SIZE; k++) {
 				if (this->segments[newSegmentIndex].buckets[overflowBucketIndex][k] == EMPTY_BUCKET_ELEMENT) {
@@ -305,7 +305,7 @@ bool BambooFilter::expand() {
 					break;
 				}
 			}
-			// insertaj element u novi segment (u alternativni bucket ako je orginalni zauzet)
+			// insert element into new segment (alternate bucket)
 			if (!insertSuccesful) {
 				insertSuccesful = false;
 				for (size_t k = 0; k < BUCKET_SIZE; k++) {
@@ -316,14 +316,14 @@ bool BambooFilter::expand() {
 					}
 				}
 			}
-			// insertaj element u novi segment (u overflow, ako su bucketi zauzeti)
+			// insert element into new segment (overflow)
 			if (!insertSuccesful) {
-				this->segments[newSegmentIndex].overflow.push_back(element); // dodaj u overflow novog segmenta
+				this->segments[newSegmentIndex].overflow.push_back(element); // add element to the overflow of new segment
 			}
 		}
-		// ako je segment index jednak starom segmentu provjeri mozes li rasporedit neke elemente u njega
+		// if the segment index is equal to the old segment index, check if you can distribute some elements into it
 		else if (segmentIndex == this->p) {
-			// insertaj element u bucket u TRENUTNOM segmentu
+			// insert element into bucket in the CURRENT segment
 			bool insertSuccesful = false;
 			for (size_t k = 0; k < BUCKET_SIZE; k++) {
 				if (this->segments[this->p].buckets[overflowBucketIndex][k] == EMPTY_BUCKET_ELEMENT) {
@@ -332,7 +332,7 @@ bool BambooFilter::expand() {
 					break;
 				}
 			}
-			// insertaj element u bucket u TRENUTNOM segmentu (ako je orginalni bucket pun)
+			// insert element into alternate bucket in the CURRENT segment (if the bucket is full)
 			if (!insertSuccesful) {
 				insertSuccesful = false;
 				for (size_t k = 0; k < BUCKET_SIZE; k++) {
@@ -343,28 +343,28 @@ bool BambooFilter::expand() {
 					}
 				}
 			}
-			// ostavi element u overflowu
+			// leave the element in the overflow
 			if (!insertSuccesful) {
-				newOverflowForOldSegment.push_back(element); // dodaj u overflow novog segmenta ako nema slobodnog mjesta
+				newOverflowForOldSegment.push_back(element); // add to the overflow
 			}
 		}
 
 	}
-	this->segments[this->p].overflow = newOverflowForOldSegment; // zamjeni overflow starog segmenta
+	this->segments[this->p].overflow = newOverflowForOldSegment; // replace the old overflow with the new one
 
-	this->p++; // povecaj index na index sljedeceg segmenta
+	this->p++; // change the index to the next segment index
 
 	if (this->p == static_cast<uint16_t>(std::pow(2.0, this->i)) * this->n0) {
-		this->p = 0; // resetiraj index
-		this->i++; // povecaj rundu ekspanzije
+		this->p = 0; // reset index
+		this->i++; // increase expantion round
 	}
 
 	return true;
 }
 
-// funkcija za provjeru da li je element u BambooFilteru
+// lookup function of the BambooFilter
 bool BambooFilter::lookup(std::string entry) {
-	// dobij sve potrebne elemente
+	// get all the necessary elements
 	uint16_t f = this->getFingertip(entry);
 	uint16_t Ib = this->getBucketIndex(entry);
 	uint16_t IbAlternate = this->getAlternateBucketIndex(entry);
@@ -372,7 +372,7 @@ bool BambooFilter::lookup(std::string entry) {
 	if (Is >= this->segments.size())
 		Is = this->getSegmentIndexWithCorrection(entry);
 
-	// pogledaj je li element u bucketima
+	// check if it is in one of the buckets
 	for (size_t j = 0; j < BUCKET_SIZE; j++) {
 		if (this->segments[Is].buckets[Ib][j] == f) {
 			return true;
@@ -382,9 +382,9 @@ bool BambooFilter::lookup(std::string entry) {
 		}
 	}
 
-	// pogledaj je li element u overflowu
-	uint32_t reconstructedHash = this->reconstructHash(f, Is, Ib); // rekonstruacija hasha
-	uint32_t reconstructedHashAlternate = this->reconstructHash(f, Is, IbAlternate); // rekonstruacija hasha s alternativnim bucketom
+	// check if it is in the overflow
+	uint32_t reconstructedHash = this->reconstructHash(f, Is, Ib); // rekonstruct hash
+	uint32_t reconstructedHashAlternate = this->reconstructHash(f, Is, IbAlternate); // rekonstruct hash with alternate bucketom
 	for (auto element : this->segments[Is].overflow) {
 		if (element == reconstructedHash) {
 			return true;
