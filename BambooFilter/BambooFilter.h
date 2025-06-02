@@ -13,7 +13,7 @@ struct Segment {
 // class for Bamboo Filter
 class BambooFilter {
 private:
-	size_t i, p, n0, lf, lb, ls0, Me, expansionTrigger; // expantion round,	next segment to expand, initial segment, fingerprint size, bucket index size, starting segment index size, variable Me from insert, expansion trigger
+	size_t i, p, n0, lf, lb, ls0, Me, expansionTrigger; // expantion round, next segment to expand, initial segment, fingerprint size, bucket index size, starting segment index size, variable Me from insert, expansion trigger
 	std::vector<Segment> segments; // segment
 	size_t getBitLength(uint32_t n); // helper function that returns the bit length of n
 	uint32_t reconstructHash(uint16_t f, uint32_t Is, uint16_t Ib); // helper function that reconstructs hash
