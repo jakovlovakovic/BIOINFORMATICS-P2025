@@ -11,7 +11,7 @@ cmake .. -DCMAKE_BUILD_TYPE=Release
 cmake --build .
 ```
 ## Example of running the program
-Position Yourself in the build directory inside BambooFilter directory
+Position Yourself in the build directory inside BambooFilter directory and run the following command:
 ```
 ./BambooFilter <path_to_config_file> <path_to_string_sequence>
 ```
