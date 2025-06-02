@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <cstdint>
 
 struct Segment {
 	std::vector<std::vector<uint16_t>> buckets; // bucketi jednog segmenta

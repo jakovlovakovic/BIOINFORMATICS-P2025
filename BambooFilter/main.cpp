@@ -5,6 +5,7 @@
 #include <chrono>
 #include <iomanip>
 #include <string>
+#include <algorithm>
 #include "BambooFilter.h"
 extern "C" {
 #include "hash/xxhash.h"  
@@ -15,7 +16,7 @@ int main(int argc, char* argv[]) {
 	std::ofstream outFile("output.txt");
 	// read configuration file
 	std::string configFilePath;
-	if (argc > 1) {
+	if (argc >= 3) {
 		configFilePath = argv[1];
 	}
 	else {
@@ -34,7 +35,9 @@ int main(int argc, char* argv[]) {
 	std::vector<std::string> lines;
 	std::string line;
 	while (std::getline(configFile, line)) {
-		if (line[0] != '#') lines.push_back(line);
+		line.erase(std::remove(line.begin(), line.end(), '\r'), line.end()); // for linux
+		line.erase(line.find_last_not_of(" \t\n\r") + 1); // for linux
+		if (!line.empty() && line[0] != '#') lines.push_back(line);
 	}
 	configFile.close();
 
@@ -53,10 +56,11 @@ int main(int argc, char* argv[]) {
 	BambooFilter bf; // initialise BambooFilter
 
 	// read the dna file
-	if (argc > 1) {
-		configFilePath = argv[2];
+	std::string dnaFilePath;
+	if (argc >= 3) {
+		dnaFilePath = argv[2];
 	}
-	std::ifstream file(configFilePath);
+	std::ifstream file(dnaFilePath);
 	if (!file.is_open()) {
 		return 1;
 	}
@@ -66,6 +70,7 @@ int main(int argc, char* argv[]) {
 	file.close();
 
 	fileContent.erase(std::remove(fileContent.begin(), fileContent.end(), '\n'), fileContent.end());
+	fileContent.erase(std::remove(fileContent.begin(), fileContent.end(), '\r'), fileContent.end()); // for linux
 
 	// insert time statistic
 	std::vector<long long> cumulative_insert_times;
