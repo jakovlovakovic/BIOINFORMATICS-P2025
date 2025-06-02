@@ -10,6 +10,8 @@ cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release
 cmake --build .
 ```
+Alternative approach to build this project is by using provided solution file.
+
 ## Example of running the program
 Position Yourself in the build directory inside BambooFilter directory and run the following command:
 ```
