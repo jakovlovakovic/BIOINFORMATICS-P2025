@@ -16,5 +16,6 @@ cmake --build .
 ## Credits/References
 Wang H et al. Bamboo filters: make resizing smooth and adaptive IEEE/ACM Trans. Netw. 2024
 https://github.com/wanghanchengchn/bamboofilters/tree/main
+
 Hashing algorithm:
 https://github.com/Cyan4973/xxHash
