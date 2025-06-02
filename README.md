@@ -12,3 +12,9 @@ cmake --build .
 ```
 ## Example of running the program
 ./BambooFilter <path_to_config_file> <path_to_string_sequence>
+
+## Credits/References
+Wang H et al. Bamboo filters: make resizing smooth and adaptive IEEE/ACM Trans. Netw. 2024
+https://github.com/wanghanchengchn/bamboofilters/tree/main
+Hashing algorithm:
+https://github.com/Cyan4973/xxHash
